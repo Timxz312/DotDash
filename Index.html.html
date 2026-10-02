@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dot Dash</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#e6e1ff; --panel:#f6f4ff; --ink:#1d1a3a; --muted:#6a6590; --dot:#ff5d73; --ring:#7a5cff;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#171433;--panel:#211d44;--ink:#f1efff;--muted:#a29dd0;--dot:#ff7a8c;--ring:#9c85ff}
+}
+:root[data-theme="dark"]{--bg:#171433;--panel:#211d44;--ink:#f1efff;--muted:#a29dd0;--dot:#ff7a8c;--ring:#9c85ff}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Fredoka",system-ui,sans-serif;display:flex;flex-direction:column;gap:12px;padding:16px;user-select:none;-webkit-user-select:none}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{margin:0;font-size:1.6rem;font-weight:700}
+.stats{display:flex;gap:10px}
+.stat{background:var(--panel);border-radius:14px;padding:6px 14px;text-align:center;min-width:76px}
+.stat small{display:block;color:var(--muted);font-size:.75rem}
+.stat b{font-size:1.4rem}
+#arena{position:relative;flex:1;min-height:0;background:var(--panel);border-radius:24px;overflow:hidden;cursor:crosshair;touch-action:manipulation;box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--ring) 25%,transparent)}
+#dot{position:absolute;width:56px;height:56px;border-radius:50%;background:var(--dot);cursor:pointer;display:none}
+#dot::after{content:"";position:absolute;inset:0;border-radius:50%;border:3px solid var(--ring);animation:shrink var(--t,1.5s) linear forwards;pointer-events:none}
+@keyframes shrink{from{transform:scale(2.6);opacity:.9}to{transform:scale(1);opacity:1}}
+#overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;background:color-mix(in srgb,var(--panel) 92%,transparent);padding:24px;cursor:default}
+#overlay h2{margin:0;font-size:2rem}
+#overlay p{margin:0;color:var(--muted);max-width:30ch;line-height:1.4}
+button{font:inherit;font-weight:700;font-size:1.1rem;background:var(--ink);color:var(--bg);border:0;border-radius:999px;padding:12px 32px;margin-top:8px;cursor:pointer}
+button:focus-visible{outline:3px solid var(--ring);outline-offset:3px}
+@media (prefers-reduced-motion:reduce){#dot::after{animation-duration:.01s}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Dot Dash</h1>
+  <div class="stats">
+    <div class="stat"><small>Score</small><b id="score">0</b></div>
+    <div class="stat"><small>Best</small><b id="best">0</b></div>
+  </div>
+</header>
+<main id="arena">
+  <div id="dot" role="button" aria-label="Target"></div>
+  <div id="overlay">
+    <h2 id="title">Dot Dash</h2>
+    <p id="msg">Tap each dot before its ring closes. Tap anywhere else and you lose.</p>
+    <button id="go">Start game</button>
+  </div>
+</main>
+<script>
+(function(){
+  var arena=document.getElementById("arena"), dot=document.getElementById("dot"),
+      overlay=document.getElementById("overlay"), scoreEl=document.getElementById("score"),
+      bestEl=document.getElementById("best"), titleEl=document.getElementById("title"),
+      msgEl=document.getElementById("msg"), goBtn=document.getElementById("go");
+  var score=0, best=0, timer=null, playing=false;
+  try{ best=parseInt(localStorage.getItem("dotdash-best"),10)||0; }catch(e){}
+  bestEl.textContent=best;
+
+  function limit(){ return Math.max(500, 1500-score*40); }
+
+  function place(){
+    var w=arena.clientWidth-56, h=arena.clientHeight-56;
+    dot.style.left=Math.random()*Math.max(w,0)+"px";
+    dot.style.top=Math.random()*Math.max(h,0)+"px";
+    var t=limit();
+    dot.style.setProperty("--t",t+"ms");
+    dot.style.display="none"; void dot.offsetWidth; dot.style.display="block";
+    clearTimeout(timer);
+    timer=setTimeout(function(){ end("Too slow!"); },t);
+  }
+
+  function start(){
+    score=0; scoreEl.textContent=0; playing=true;
+    overlay.style.display="none";
+    place();
+  }
+
+  function end(reason){
+    if(!playing) return;
+    playing=false; clearTimeout(timer); dot.style.display="none";
+    var newBest=score>best;
+    if(newBest){ best=score; bestEl.textContent=best; try{ localStorage.setItem("dotdash-best",best); }catch(e){} }
+    titleEl.textContent=reason;
+    msgEl.textContent="You scored "+score+(newBest&&score>0?" - a new best!":". Best is "+best+".");
+    goBtn.textContent="Play again";
+    overlay.style.display="flex";
+    goBtn.focus();
+  }
+
+  dot.addEventListener("pointerdown",function(e){
+    e.stopPropagation();
+    if(!playing) return;
+    score++; scoreEl.textContent=score; place();
+  });
+  arena.addEventListener("pointerdown",function(e){
+    if(playing && e.target===arena) end("Missed!");
+  });
+  goBtn.addEventListener("click",start);
+})();
+</script>
+</body>
+</html>
